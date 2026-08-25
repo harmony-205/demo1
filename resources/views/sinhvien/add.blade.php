@@ -7,7 +7,8 @@
 </head>
 <body>
     <h1>Thêm sinh viên</h1>
-    <form action="" method="POST">
+    <form method="POST" action="{{ route('sinhvien.store') }}">
+        @csrf
         <label for="ma_sv">Mã sinh viên:</label>
         <input type="text" id="ma_sv" name="ma_sv" required><br><br>
 

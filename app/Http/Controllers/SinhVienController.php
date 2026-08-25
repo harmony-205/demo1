@@ -19,10 +19,25 @@ class SinhVienController extends Controller
             'sinhviens' => $this->sinhviens
         ]);
     }
-    public function show($id="")
+    public function getID($id)
     {
-        return "Đây là sinh viên có ID = $id";
+        $sinhvien = collect($this->sinhviens)->firstWhere('id', $id);
+        return "Thông tin sinh viên có ID = $id: Tên = {$sinhvien['name']}, Tuổi = {$sinhvien['age']}";
+    }
+    public function show($hoten="Chưa có tên", $tuoi=0)
+    {
+        return "Đây là sinh viên có tên = $hoten, tuổi = $tuoi";
+    }
+    public function add()
+    {
+        return view('sinhvien.add',[
+            'title' => 'Thêm sinh viên'
+        ]);
+    }
+    public function store(Request $request)
+    {
+        dd($request->all());
     }
 }
 
-// php artisan make: controller SinhVienController
+// php artisan make:controller SinhVienController
