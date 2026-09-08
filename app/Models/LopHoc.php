@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 
 class LopHoc extends Model
 {
     //
+    use HasFactory;
     protected $table = 'lop_hocs';
     protected $fillable = [
         'ten_lop',
