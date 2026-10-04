@@ -1,72 +1,86 @@
 @extends('layout1')
 
-@section('title', 'Tạo lớp học')
+@section('title', 'Tạo lớp học mới')
+@section('description', 'Thêm một lớp học mới vào cơ sở dữ liệu')
 
 @push('styles')
-	<style>
-		table {
-			border-collapse: collapse;
-			width: 100%;
-		}
-
-		th,
-		td {
-			padding: 10px 12px;
-			text-align: left;
-			border: 1px solid #ddd;
-		}
-
-		th {
-			background-color: #f0ebf5;
-			color: #3d2b56;
-		}
-
-		tbody tr:hover {
-			background-color: #f8f5fb;
-		}
-	</style>
+<style>
+    .form-box {
+        max-width: 720px;
+        background: #fff;
+    }
+</style>
 @endpush
 
 @section('content')
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
 
-    <form action="{{route('lophocs.store')}}" method="POST">
-        @csrf
-        <div class="mb-3">
-            <label for="ma_lop" class="form-label">Mã lớp:</label>
-            <input type="text" class="form-control" id="ma_lop" name="ma_lop" required>
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <strong>Đã xảy ra lỗi, vui lòng kiểm tra lại:</strong>
+            <ul class="mb-0 mt-1">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
-        <div class="mb-3">
-            <label for="ten_lop" class="form-label">Tên lớp:</label>
-            <input type="text" class="form-control" id="ten_lop" name="ten_lop" required>
-        </div>
-        <div class="mb-3">
-            <label for="giao_vien" class="form-label">Giáo viên:</label>
-            <input type="text" class="form-control" id="giao_vien" name="giao_vien" required>
-        </div>
-        <div class="mb-3">
-            <label for="so_dien_thoai_gvcn" class="from-label">Số điện thoại:</label>
-            <input type="text" class="form-control" id="so_dien_thoai_gvcn" name="so_dien_thoai_gvcn" required>
-        </div>
-        <div class="mb-3">
-            <label for="si_so" class="form-label">Sĩ số:</label>
-            <input type="number" class="form-control" id="si_so" name="si_so" required>
-        </div>
-        <div class="mb-3">
-            <label for="trang_thai" class="form-label">Trạng thái:</label>
-            <select id="trang_thai" name="trang_thai" class="form-select" required>
-                <option value="1">Đang hoạt động</option>
-                <option value="0">Đã khóa</option>
-            </select>
-        </div>
-        <button type="submit" class="btn btn-primary mt-2">Tạo lớp học</button>
-    </form>
+    @endif
+
+    <div class="form-box">
+        <form action="{{ route('lophocs.store') }}" method="POST">
+            @csrf
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="ma_lop" class="form-label font-weight-bold">Mã lớp <span class="text-danger">*</span>:</label>
+                    <input type="text" class="form-control" id="ma_lop" name="ma_lop" value="{{ old('ma_lop') }}" placeholder="VD: WEB01, CNTT02..." required>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="ten_lop" class="form-label font-weight-bold">Tên lớp <span class="text-danger">*</span>:</label>
+                    <input type="text" class="form-control" id="ten_lop" name="ten_lop" value="{{ old('ten_lop') }}" placeholder="VD: Lập trình Web 1..." required>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="giao_vien" class="form-label">Giáo viên chủ nhiệm <span class="text-danger">*</span>:</label>
+                    <input type="text" class="form-control" id="giao_vien" name="giao_vien" value="{{ old('giao_vien') }}" placeholder="VD: Nguyễn Văn A..." required>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="so_dien_thoai_gvcn" class="form-label">Số điện thoại GVCN:</label>
+                    <input type="text" class="form-control" id="so_dien_thoai_gvcn" name="so_dien_thoai_gvcn" value="{{ old('so_dien_thoai_gvcn') }}" placeholder="VD: 0901234567">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="si_so" class="form-label">Sĩ số <span class="text-danger">*</span>:</label>
+                    <input type="number" class="form-control" id="si_so" name="si_so" value="{{ old('si_so', 30) }}" min="1" required>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="trang_thai" class="form-label">Trạng thái:</label>
+                    <select id="trang_thai" name="trang_thai" class="form-select" required>
+                        <option value="1" {{ old('trang_thai', '1') == '1' ? 'selected' : '' }}>Đang hoạt động</option>
+                        <option value="0" {{ old('trang_thai') === '0' ? 'selected' : '' }}>Đã khóa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="ghi_chu" class="form-label">Ghi chú:</label>
+                <textarea class="form-control" id="ghi_chu" name="ghi_chu" rows="3" placeholder="Nhập ghi chú thêm nếu có...">{{ old('ghi_chu') }}</textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" style="background-color: var(--mau-chinh); border-color: var(--mau-chinh);">
+                    Lưu lớp học
+                </button>
+                <a href="{{ route('lophocs.index') }}" class="btn btn-outline-secondary">
+                    Quay lại danh sách
+                </a>
+            </div>
+        </form>
+    </div>
 @endsection

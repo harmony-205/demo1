@@ -1,77 +1,302 @@
 @extends('layout1')
 
 @section('title', 'Danh sách lớp học')
-	
+@section('description', 'Quản lý thông tin, tìm kiếm, lọc và sắp xếp các lớp học')
 
 @push('styles')
-	<style>
-		table {
-			border-collapse: collapse;
-			width: 100%;
-		}
-
-		th,
-		td {
-			padding: 10px 12px;
-			text-align: left;
-			border: 1px solid #ddd;
-		}
-
-		th {
-			background-color: #f0ebf5;
-			color: #3d2b56;
-		}
-
-		tbody tr:hover {
-			background-color: #f8f5fb;
-		}
-	</style>
+<style>
+    .filter-box {
+        background-color: #fcfbfe;
+        border: 1px solid #e7e2ee;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+    }
+    .table-custom {
+        border-collapse: collapse;
+        width: 100%;
+        background-color: #fff;
+    }
+    .table-custom th,
+    .table-custom td {
+        padding: 12px 14px;
+        text-align: left;
+        border: 1px solid #e9e5f0;
+        vertical-align: middle;
+    }
+    .table-custom th {
+        background-color: #f0ebf5;
+        color: #3d2b56;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .table-custom tbody tr:hover {
+        background-color: #fbf9fd;
+    }
+    .sort-link {
+        color: #3d2b56;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .sort-link:hover {
+        color: #7b4fb5;
+        text-decoration: underline;
+    }
+    .sort-icon {
+        font-size: 11px;
+        opacity: 0.6;
+    }
+    .sort-icon.active {
+        opacity: 1;
+        color: #d97706;
+        font-weight: bold;
+    }
+    .badge-active {
+        background-color: #d1fae5;
+        color: #065f46;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .badge-locked {
+        background-color: #f3f4f6;
+        color: #4b5563;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+</style>
 @endpush
 
 @section('content')
-	<table>
-		<thead>
-			<tr>
-				<th>ID</th>
-				<th>Mã lớp</th>
-				<th>Tên lớp</th>
-				<th>Giáo viên</th>
-				<th>Sĩ số</th>
-				<th>Trạng thái</th>
-				<th>Thao tác</th>
-			</tr>
-		</thead>
-		<tbody>
-			@forelse ($lopHocs as $lopHoc)
-				<tr>
-					<td>{{ $lopHoc->id }}</td>
-					<td>{{ $lopHoc->ma_lop }}</td>
-					<td>{{ $lopHoc->ten_lop }}</td>
-					<td>{{ $lopHoc->giao_vien }}</td>
-					<td>{{ $lopHoc->si_so }}</td>
-					<td>{{ $lopHoc->trang_thai ? 'Đang hoạt động' : 'Đã khóa' }}</td>
-					<td>
-						<a href="{{ route('lophocs.edit', $lopHoc->id) }}" class="btn btn-sm btn-primary">Sửa</a>
-						<form action="{{ route('lophocs.destroy', $lopHoc->id) }}" method="POST" style="display: inline;">
-							@csrf
-							@method('DELETE')
-							<button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Bạn có chắc chắn muốn xóa lớp học này không?')">Xóa</button>
-						</form>
-					</td>
-				</tr>
-			@empty
-				<tr>
-					<td colspan="6">Chưa có lớp học nào.</td>
-				</tr>
-			@endforelse
-		</tbody>
 
-	</table>
-    <select id="perPage" onchange="if (this.value) window.location.href='{{ url()->current() }}?perPage=' + this.value;">
-        <option value="10">10</option>
-        <option value="20">20</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-    </select>
-    {{ $lopHocs->links()  }}
+    {{-- Thông báo flash session --}}
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <strong>Thành công!</strong> {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <strong>Lỗi!</strong> {{ session('error') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach($errors->all() as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Thanh công cụ trên cùng --}}
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h3 class="h5 mb-0 text-secondary">
+            Tổng số: <strong>{{ $lopHocs->total() }}</strong> lớp học
+        </h3>
+        <a href="{{ route('lophocs.create') }}" class="btn btn-primary" style="background-color: var(--mau-chinh); border-color: var(--mau-chinh);">
+            + Thêm lớp học mới
+        </a>
+    </div>
+
+    {{-- Khung tìm kiếm và bộ lọc --}}
+    <div class="filter-box">
+        <form action="{{ route('lophocs.index') }}" method="GET" class="row g-2 align-items-end">
+            {{-- Giữ nguyên sắp xếp khi lọc --}}
+            <input type="hidden" name="sort_by" value="{{ request('sort_by', $sortBy) }}">
+            <input type="hidden" name="sort_direction" value="{{ request('sort_direction', $sortDirection) }}">
+
+            <div class="col-md-4 col-sm-6">
+                <label for="keyword" class="form-label mb-1" style="font-size: 13px; font-weight: 600;">Từ khóa tìm kiếm:</label>
+                <input type="text" 
+                       id="keyword" 
+                       name="keyword" 
+                       class="form-control form-control-sm" 
+                       placeholder="Mã lớp, tên lớp, giáo viên, SĐT..."
+                       value="{{ request('keyword') }}">
+            </div>
+
+            <div class="col-md-3 col-sm-6">
+                <label for="trang_thai" class="form-label mb-1" style="font-size: 13px; font-weight: 600;">Trạng thái:</label>
+                <select id="trang_thai" name="trang_thai" class="form-select form-select-sm">
+                    <option value="">-- Tất cả trạng thái --</option>
+                    <option value="1" {{ request('trang_thai') === '1' ? 'selected' : '' }}>Đang hoạt động</option>
+                    <option value="0" {{ request('trang_thai') === '0' ? 'selected' : '' }}>Đã khóa</option>
+                </select>
+            </div>
+
+            <div class="col-md-2 col-sm-6">
+                <label for="perPage" class="form-label mb-1" style="font-size: 13px; font-weight: 600;">Hiển thị / trang:</label>
+                <select id="perPage" name="perPage" class="form-select form-select-sm">
+                    <option value="5" {{ request('perPage', 10) == 5 ? 'selected' : '' }}>5 dòng</option>
+                    <option value="10" {{ request('perPage', 10) == 10 ? 'selected' : '' }}>10 dòng</option>
+                    <option value="20" {{ request('perPage', 10) == 20 ? 'selected' : '' }}>20 dòng</option>
+                    <option value="50" {{ request('perPage', 10) == 50 ? 'selected' : '' }}>50 dòng</option>
+                    <option value="100" {{ request('perPage', 10) == 100 ? 'selected' : '' }}>100 dòng</option>
+                </select>
+            </div>
+
+            <div class="col-md-3 col-sm-6 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-dark flex-fill" style="background-color: var(--mau-phu); border-color: var(--mau-phu);">
+                    Lọc dữ liệu
+                </button>
+                <a href="{{ route('lophocs.index') }}" class="btn btn-sm btn-outline-secondary">
+                    Đặt lại
+                </a>
+            </div>
+        </form>
+    </div>
+
+    @php
+        $getSortUrl = function($col) use ($sortBy, $sortDirection) {
+            $nextDirection = ($sortBy === $col && $sortDirection === 'asc') ? 'desc' : 'asc';
+            return route('lophocs.index', array_merge(request()->query(), [
+                'sort_by' => $col,
+                'sort_direction' => $nextDirection
+            ]));
+        };
+    @endphp
+
+    {{-- Bảng hiển thị danh sách lớp học --}}
+    <div class="table-responsive mb-3">
+        <table class="table-custom">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">
+                        <a href="{{ $getSortUrl('id') }}" class="sort-link">
+                            ID 
+                            @if($sortBy === 'id')
+                                <span class="sort-icon active">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="sort-icon">⇅</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th style="width: 130px;">
+                        <a href="{{ $getSortUrl('ma_lop') }}" class="sort-link">
+                            Mã lớp
+                            @if($sortBy === 'ma_lop')
+                                <span class="sort-icon active">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="sort-icon">⇅</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $getSortUrl('ten_lop') }}" class="sort-link">
+                            Tên lớp
+                            @if($sortBy === 'ten_lop')
+                                <span class="sort-icon active">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="sort-icon">⇅</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th>
+                        <a href="{{ $getSortUrl('giao_vien') }}" class="sort-link">
+                            Giáo viên
+                            @if($sortBy === 'giao_vien')
+                                <span class="sort-icon active">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="sort-icon">⇅</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th style="width: 110px;">
+                        <a href="{{ $getSortUrl('si_so') }}" class="sort-link">
+                            Sĩ số
+                            @if($sortBy === 'si_so')
+                                <span class="sort-icon active">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="sort-icon">⇅</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th style="width: 150px;">
+                        <a href="{{ $getSortUrl('trang_thai') }}" class="sort-link">
+                            Trạng thái
+                            @if($sortBy === 'trang_thai')
+                                <span class="sort-icon active">{{ $sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                            @else
+                                <span class="sort-icon">⇅</span>
+                            @endif
+                        </a>
+                    </th>
+                    <th style="width: 140px; text-align: center;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($lopHocs as $lopHoc)
+                    <tr>
+                        <td><strong>#{{ $lopHoc->id }}</strong></td>
+                        <td><code>{{ $lopHoc->ma_lop }}</code></td>
+                        <td>
+                            <strong>{{ $lopHoc->ten_lop }}</strong>
+                            @if($lopHoc->ghi_chu)
+                                <div class="text-muted" style="font-size: 12px;">{{ Str::limit($lopHoc->ghi_chu, 40) }}</div>
+                            @endif
+                        </td>
+                        <td>
+                            {{ $lopHoc->giao_vien }}
+                            @if($lopHoc->so_dien_thoai_gvcn)
+                                <div class="text-muted" style="font-size: 12px;">SĐT: {{ $lopHoc->so_dien_thoai_gvcn }}</div>
+                            @endif
+                        </td>
+                        <td>{{ $lopHoc->si_so }} học viên</td>
+                        <td>
+                            @if($lopHoc->trang_thai)
+                                <span class="badge-active">Đang hoạt động</span>
+                            @else
+                                <span class="badge-locked">Đã khóa</span>
+                            @endif
+                        </td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <a href="{{ route('lophocs.edit', $lopHoc->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 13px;">
+                                Sửa
+                            </a>
+                            <form action="{{ route('lophocs.destroy', $lopHoc->id) }}" method="POST" style="display: inline-block;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" 
+                                        class="btn btn-sm btn-outline-danger py-0 px-2" 
+                                        style="font-size: 13px;"
+                                        onclick="return confirm('Bạn có chắc chắn muốn xóa lớp học [{{ $lopHoc->ten_lop }}] không?')">
+                                    Xóa
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <em>Không tìm thấy lớp học nào phù hợp với điều kiện tìm kiếm.</em>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    {{-- Phân trang và thống kê --}}
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+        <div class="text-muted" style="font-size: 13px;">
+            @if($lopHocs->total() > 0)
+                Hiển thị từ <strong>{{ $lopHocs->firstItem() }}</strong> đến <strong>{{ $lopHocs->lastItem() }}</strong> trên tổng số <strong>{{ $lopHocs->total() }}</strong> lớp học
+            @else
+                Hiển thị 0 kết quả
+            @endif
+        </div>
+        <div>
+            {{ $lopHocs->links() }}
+        </div>
+    </div>
+
 @endsection

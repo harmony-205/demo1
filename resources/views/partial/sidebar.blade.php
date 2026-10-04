@@ -5,8 +5,6 @@
       background-color: var(--mau-phu);
       color: #fff;
       padding: 20px 0;
-      /* Cú pháp: flex: grow shrink basis
-         0 0 240px = không giãn, không co, rộng đúng 240px */
       flex: 0 0 var(--rong-sidebar);
     }
     .sidebar h3 {
@@ -33,12 +31,26 @@
 </style>
 @endpush
   <aside class="sidebar">
+    <h3>Chức năng quản lý</h3>
+    <ul class="menu-doc">
+      <li>
+        <a href="{{ route('lophocs.index') }}" class="{{ request()->routeIs('lophocs.*') ? 'active' : '' }}">
+          Quản lý Lớp học
+        </a>
+      </li>
+      <li>
+        <a href="{{ route('menus.index') }}" class="{{ request()->routeIs('menus.*') ? 'active' : '' }}">
+          Quản lý Menu
+        </a>
+      </li>
+    </ul>
+
     <h3>Nội dung môn học</h3>
     <ul class="menu-doc">
       <li><a href="#">Bài 1 — HTML cơ bản</a></li>
       <li><a href="#">Bài 2 — CSS Selector</a></li>
       <li><a href="#">Bài 3 — Box Model</a></li>
-      <li><a href="#" class="active">Bài 4 — Flexbox</a></li>
+      <li><a href="#">Bài 4 — Flexbox</a></li>
       <li><a href="#">Bài 5 — CSS Grid</a></li>
       <li><a href="#">Bài 6 — Responsive</a></li>
     </ul>

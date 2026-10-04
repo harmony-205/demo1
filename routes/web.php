@@ -3,9 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SinhVienController;
 use App\Http\Controllers\LopHocController;
+use App\Http\Controllers\MenuController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('lophocs.index');
 });
 // Route::get('/sinhvien', [SinhVienController::class, 'index']);
 // Route::get('/sinhvien/add', [SinhVienController::class, 'add']);
@@ -20,3 +21,4 @@ Route::get('/', function () {
 
 Route::resource('users', SinhVienController::class);
 Route::resource('lophocs', LopHocController::class);
+Route::resource('menus', MenuController::class);
