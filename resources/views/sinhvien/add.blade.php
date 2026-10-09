@@ -1,29 +1,25 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    <h1>Thêm sinh viên</h1>
-    <form method="POST" action="{{ route('sinhvien.store') }}">
-        @csrf
-        <label for="ma_sv">Mã sinh viên:</label>
-        <input type="text" id="ma_sv" name="ma_sv" required><br><br>
+@extends('layouts.layoutmaster')
+@section('title', 'Thêm sinh viên')
 
-        <label for="ho_ten">Họ tên:</label>
-        <input type="text" id="ho_ten" name="ho_ten" required><br><br>
+@section('content')
+    <div style="max-width: 560px;">
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ route('sinhvien.index') }}">Sinh viên</a></li>
+                <li class="breadcrumb-item active">Thêm mới</li>
+            </ol>
+        </nav>
 
-        <label for="ngay_sinh">Ngày sinh:</label>
-        <input type="date" id="ngay_sinh" name="ngay_sinh" required><br><br>
+        <h1 class="mb-4">Thêm sinh viên</h1>
 
-        <label for="lop">Lớp:</label>
-        <input type="text" id="lop" name="lop" required><br><br>
+        <form action="{{ route('sinhvien.store') }}" method="POST" novalidate>
+            @csrf
+            @include('sinhvien._form')
 
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" required><br><br>
-
-        <button type="submit">Thêm sinh viên</button>
-</body>
-</html>
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">Lưu sinh viên</button>
+                <a href="{{ route('sinhvien.index') }}" class="btn btn-secondary">Hủy</a>
+            </div>
+        </form>
+    </div>
+@endsection

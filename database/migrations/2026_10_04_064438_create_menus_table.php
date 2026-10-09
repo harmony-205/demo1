@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('menus', function (Blueprint $table) {
             $table->id();
-            $table->string('slug')->unique();
-            $table->string('tenhienthi');
+            $table->string('slug')->nullable()->unique();
+            $table->string('tenhienthi')->nullable();
             $table->boolean('trangthai')->default(true);
             $table->timestamps();
         });

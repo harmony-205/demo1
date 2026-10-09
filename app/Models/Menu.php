@@ -9,15 +9,32 @@ class Menu extends Model
 {
     use HasFactory;
 
-    protected $table = 'menus';
+    // Các vị trí hiển thị menu trên layout
+    public const VI_TRI = [
+        'header' => 'Header',
+        'sidebar' => 'Sidebar',
+    ];
 
     protected $fillable = [
-        'slug',
-        'tenhienthi',
-        'trangthai',
+        'ten',
+        'url',
+        'vi_tri',
+        'nhom',
+        'thu_tu',
+        'trang_thai',
     ];
 
-    protected $casts = [
-        'trangthai' => 'boolean',
-    ];
+    /**
+     * Menu này có trỏ tới trang đang xem không (để tô sáng).
+     */
+    public function dangChon(): bool
+    {
+        $path = trim((string) parse_url($this->url, PHP_URL_PATH), '/');
+
+        if ($path === '') {
+            return $this->url === '/' && request()->is('/');
+        }
+
+        return request()->is($path, $path . '/*');
+    }
 }

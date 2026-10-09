@@ -2,57 +2,65 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreLopHocRequest;
+use App\Http\Requests\UpdateLopHocRequest;
 use App\Models\LopHoc;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class LopHocController extends Controller
 {
+    // Các cột được phép sắp xếp (không lấy thẳng tên cột từ URL để tránh SQL injection)
+    private const SORTABLE = ['id', 'ten_lop', 'ma_lop', 'giao_vien', 'si_so', 'trang_thai'];
+
+    private const PER_PAGE_OPTIONS = [10, 20, 50, 100];
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = LopHoc::query();
+        // Tham số lọc/sắp xếp nằm trên URL nên người dùng sửa tuỳ ý được:
+        // valid() chỉ giữ lại những tham số hợp lệ, cái nào sai thì bỏ qua.
+        $filters = Validator::make($request->query(), [
+            'keyword' => 'nullable|string|max:100',
+            'trang_thai' => 'nullable|in:0,1',
+            'si_so_min' => 'nullable|integer|min:0',
+            'si_so_max' => 'nullable|integer|min:0',
+            'sort' => 'nullable|in:' . implode(',', self::SORTABLE),
+            'direction' => 'nullable|in:asc,desc',
+            'perPage' => 'nullable|in:' . implode(',', self::PER_PAGE_OPTIONS),
+        ])->valid();
 
-        // 1. Bộ lọc tìm kiếm theo từ khóa (Mã lớp, Tên lớp, Giáo viên, SĐT)
-        if ($request->filled('keyword')) {
-            $keyword = trim($request->input('keyword'));
-            $query->where(function ($q) use ($keyword) {
-                $q->where('ma_lop', 'like', "%{$keyword}%")
-                  ->orWhere('ten_lop', 'like', "%{$keyword}%")
-                  ->orWhere('giao_vien', 'like', "%{$keyword}%")
-                  ->orWhere('so_dien_thoai_gvcn', 'like', "%{$keyword}%");
-            });
-        }
+        $sort = $filters['sort'] ?? 'id';
+        $direction = $filters['direction'] ?? 'asc';
+        $perPage = (int) ($filters['perPage'] ?? 10);
 
-        // 2. Bộ lọc theo trạng thái (1: Hoạt động, 0: Khóa)
-        if ($request->filled('trang_thai') && in_array($request->input('trang_thai'), ['0', '1'], true)) {
-            $query->where('trang_thai', $request->input('trang_thai'));
-        }
+        $lopHocs = LopHoc::query()
+            ->when(isset($filters['keyword']), function ($query) use ($filters) {
+                $keyword = '%' . $filters['keyword'] . '%';
+                $query->where(function ($q) use ($keyword) {
+                    $q->where('ten_lop', 'like', $keyword)
+                        ->orWhere('ma_lop', 'like', $keyword)
+                        ->orWhere('giao_vien', 'like', $keyword);
+                });
+            })
+            ->when(isset($filters['trang_thai']), fn ($query) => $query->where('trang_thai', $filters['trang_thai']))
+            ->when(isset($filters['si_so_min']), fn ($query) => $query->where('si_so', '>=', $filters['si_so_min']))
+            ->when(isset($filters['si_so_max']), fn ($query) => $query->where('si_so', '<=', $filters['si_so_max']))
+            ->orderBy($sort, $direction)
+            ->paginate($perPage)
+            ->withQueryString();
 
-        // 3. Sắp xếp (Sorting)
-        $allowedSortColumns = ['id', 'ma_lop', 'ten_lop', 'giao_vien', 'si_so', 'trang_thai', 'created_at'];
-        $sortBy = $request->input('sort_by', 'id');
-        if (!in_array($sortBy, $allowedSortColumns, true)) {
-            $sortBy = 'id';
-        }
-
-        $sortDirection = strtolower($request->input('sort_direction', 'desc'));
-        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
-            $sortDirection = 'desc';
-        }
-
-        $query->orderBy($sortBy, $sortDirection);
-
-        // 4. Phân trang
-        $perPage = (int) $request->input('perPage', 10);
-        if (!in_array($perPage, [5, 10, 20, 50, 100], true)) {
-            $perPage = 10;
-        }
-
-        $lopHocs = $query->paginate($perPage)->withQueryString();
-
-        return view('lop_hocs.index', compact('lopHocs', 'sortBy', 'sortDirection'));
+        return view('lop_hocs.index', [
+            'lopHocs' => $lopHocs,
+            'filters' => $filters,
+            'sort' => $sort,
+            'direction' => $direction,
+            'perPage' => $perPage,
+            'sortable' => self::SORTABLE,
+            'perPageOptions' => self::PER_PAGE_OPTIONS,
+        ]);
     }
 
     /**
@@ -66,79 +74,49 @@ class LopHocController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreLopHocRequest $request)
     {
-        $request->validate([
-            'ten_lop' => 'required|string|max:255',
-            'ma_lop' => 'required|string|max:20|unique:lop_hocs,ma_lop',
-            'giao_vien' => 'required|string|max:255',
-            'so_dien_thoai_gvcn' => 'nullable|string|max:255',
-            'ghi_chu' => 'nullable|string|max:500',
-            'si_so' => 'required|integer|min:1',
-            'trang_thai' => 'required|in:0,1',
-        ]);
+        // Vào được đến đây nghĩa là dữ liệu đã hợp lệ.
+        // validated() chỉ trả về các trường có khai báo rule.
+        LopHoc::create($request->validated());
 
-        try {
-            LopHoc::create($request->all());
-            return redirect()->route('lophocs.index')->with('success', 'Lớp học đã được tạo thành công.');
-        } catch (\Exception $e) {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Đã xảy ra lỗi khi tạo lớp học: ' . $e->getMessage()]);
-        }
+        return redirect()->route('lophoc.index')->with('success', 'Lớp học đã được tạo thành công.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show($id)
+    public function show(LopHoc $lophoc)
     {
-        $lopHoc = LopHoc::findOrFail($id);
-        return view('lop_hocs.edit', compact('lopHoc'));
+        return view('lop_hocs.show', ['lopHoc' => $lophoc]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit($id)
+    public function edit(LopHoc $lophoc)
     {
-        $lopHoc = LopHoc::findOrFail($id);
-        return view('lop_hocs.edit', compact('lopHoc'));
+        return view('lop_hocs.edit', ['lopHoc' => $lophoc]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(UpdateLopHocRequest $request, LopHoc $lophoc)
     {
-        $lopHoc = LopHoc::findOrFail($id);
-        $request->validate([
-            'ten_lop' => 'required|string|max:255',
-            'ma_lop' => 'required|string|max:20|unique:lop_hocs,ma_lop,' . $lopHoc->id,
-            'giao_vien' => 'required|string|max:255',
-            'so_dien_thoai_gvcn' => 'nullable|string|max:255',
-            'ghi_chu' => 'nullable|string|max:500',
-            'si_so' => 'required|integer|min:1',
-            'trang_thai' => 'required|in:0,1',
-        ]);
+        $lophoc->update($request->validated());
 
-        try {
-            $lopHoc->update($request->all());
-            return redirect()->route('lophocs.index')->with('success', 'Cập nhật lớp học thành công.');
-        } catch (\Exception $e) {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Đã xảy ra lỗi khi cập nhật lớp học: ' . $e->getMessage()]);
-        }
+        return redirect()->route('lophoc.index')->with('success', 'Lớp học đã được cập nhật thành công.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    public function destroy(LopHoc $lophoc)
     {
-        try {
-            $lopHoc = LopHoc::findOrFail($id);
-            $lopHoc->delete();
-            return redirect()->route('lophocs.index')->with('success', 'Xóa lớp học thành công.');
-        } catch (\Exception $e) {
-            return redirect()->route('lophocs.index')->withErrors(['error' => 'Đã xảy ra lỗi khi xóa lớp học: ' . $e->getMessage()]);
-        }
+        $lophoc->delete();
+
+        // back() để giữ nguyên bộ lọc/sắp xếp đang xem
+        return back()->with('success', 'Lớp học đã được xóa.');
     }
 }

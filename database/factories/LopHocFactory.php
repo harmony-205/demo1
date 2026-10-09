@@ -24,7 +24,7 @@ class LopHocFactory extends Factory
             'giao_vien' => $this->faker->name(),
             'so_dien_thoai_gvcn' => $this->faker->phoneNumber(),
             'ghi_chu' => $this->faker->sentence(),
-            'si_so' => $this->faker->numberBetween(20, 40),
+            'si_so' => $this->faker->numberBetween(10, 50),
             'trang_thai' => $this->faker->boolean(),
         ];
         

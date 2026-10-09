@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-
 class LopHoc extends Model
 {
     //
@@ -15,10 +14,9 @@ class LopHoc extends Model
         'ten_lop',
         'ma_lop',
         'giao_vien',
+        'so_dien_thoai_gvcn',
         'ghi_chu',
         'si_so',
         'trang_thai',
-        'so_dien_thoai_gvcn'
     ];
-    
 }
