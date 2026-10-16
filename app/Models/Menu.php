@@ -20,9 +20,28 @@ class Menu extends Model
         'url',
         'vi_tri',
         'nhom',
+        'role',
         'thu_tu',
         'trang_thai',
+        'slug',
+        'tenhienthi',
+        'trangthai',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Menu $menu) {
+            if (empty($menu->slug)) {
+                $menu->slug = \Illuminate\Support\Str::slug($menu->ten ?: 'menu') . '-' . substr(uniqid(), -5);
+            }
+            if (empty($menu->tenhienthi)) {
+                $menu->tenhienthi = $menu->ten;
+            }
+            if (!isset($menu->trangthai)) {
+                $menu->trangthai = $menu->trang_thai ?? true;
+            }
+        });
+    }
 
     /**
      * Menu này có trỏ tới trang đang xem không (để tô sáng).

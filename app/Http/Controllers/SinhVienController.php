@@ -2,238 +2,150 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreSinhVienRequest;
+use App\Http\Requests\UpdateSinhVienRequest;
+use App\Models\LopHoc;
+use App\Models\SinhVien;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class SinhVienController extends Controller
 {
-    private array $defaultSinhviens = [
-        ['id' => 1, 'name' => 'Nguyen Van A', 'ten' => 'Nguyen Van A', 'age' => 20, 'tuoi' => 20, 'diachi' => 'Hà Nội'],
-        ['id' => 2, 'name' => 'Tran Thi B', 'ten' => 'Tran Thi B', 'age' => 21, 'tuoi' => 21, 'diachi' => 'Hải Phòng'],
-        ['id' => 3, 'name' => 'Le Van C', 'ten' => 'Le Van C', 'age' => 22, 'tuoi' => 22, 'diachi' => 'Đà Nẵng'],
-        ['id' => 4, 'name' => 'Pham Thi D', 'ten' => 'Pham Thi D', 'age' => 23, 'tuoi' => 23, 'diachi' => 'Cần Thơ'],
-        ['id' => 5, 'name' => 'Hoang Van E', 'ten' => 'Hoang Van E', 'age' => 24, 'tuoi' => 24, 'diachi' => 'TP. Hồ Chí Minh'],
-    ];
+    private const SORTABLE = ['id', 'ma_sv', 'ten', 'tuoi', 'gioi_tinh', 'lop_hoc_id', 'trang_thai', 'created_at'];
+    private const PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
     /**
-     * Lấy danh sách sinh viên từ session (hoặc giá trị mặc định)
+     * Hiển thị danh sách sinh viên có phân trang, bộ lọc và sắp xếp
      */
-    private function getList(): array
+    public function index(Request $request)
     {
-        if (!session()->has('sinhviens')) {
-            session(['sinhviens' => $this->defaultSinhviens]);
-        }
-        return session('sinhviens', $this->defaultSinhviens);
-    }
+        $filters = Validator::make($request->query(), [
+            'keyword' => 'nullable|string|max:100',
+            'lop_hoc_id' => 'nullable|integer',
+            'gioi_tinh' => 'nullable|in:Nam,Nữ,Khác',
+            'trang_thai' => 'nullable|in:0,1',
+            'tuoi_min' => 'nullable|integer|min:0',
+            'tuoi_max' => 'nullable|integer|min:0',
+            'sort' => 'nullable|in:' . implode(',', self::SORTABLE),
+            'direction' => 'nullable|in:asc,desc',
+            'perPage' => 'nullable|in:' . implode(',', self::PER_PAGE_OPTIONS),
+        ])->valid();
 
-    /**
-     * Lưu danh sách sinh viên vào session
-     */
-    private function saveList(array $list): void
-    {
-        session(['sinhviens' => array_values($list)]);
-    }
+        $sort = $filters['sort'] ?? 'id';
+        $direction = $filters['direction'] ?? 'desc';
+        $perPage = (int) ($filters['perPage'] ?? 10);
 
-    /**
-     * Hiển thị danh sách sinh viên
-     */
-    public function index()
-    {
+        $sinhviens = SinhVien::query()
+            ->with('lopHoc')
+            ->when(isset($filters['keyword']), function ($query) use ($filters) {
+                $kw = '%' . $filters['keyword'] . '%';
+                $query->where(function ($q) use ($kw) {
+                    $q->where('ten', 'like', $kw)
+                        ->orWhere('ma_sv', 'like', $kw)
+                        ->orWhere('email', 'like', $kw)
+                        ->orWhere('dia_chi', 'like', $kw)
+                        ->orWhere('so_dien_thoai', 'like', $kw);
+                });
+            })
+            ->when(!empty($filters['lop_hoc_id']), fn ($query) => $query->where('lop_hoc_id', $filters['lop_hoc_id']))
+            ->when(isset($filters['gioi_tinh']), fn ($query) => $query->where('gioi_tinh', $filters['gioi_tinh']))
+            ->when(isset($filters['trang_thai']), fn ($query) => $query->where('trang_thai', $filters['trang_thai']))
+            ->when(isset($filters['tuoi_min']), fn ($query) => $query->where('tuoi', '>=', $filters['tuoi_min']))
+            ->when(isset($filters['tuoi_max']), fn ($query) => $query->where('tuoi', '<=', $filters['tuoi_max']))
+            ->orderBy($sort, $direction)
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $lopHocs = LopHoc::orderBy('ten_lop')->get();
+
         return view('sinhvien.index', [
-            'title' => 'Danh sách sinh viên',
-            'sinhviens' => $this->getList(),
+            'sinhviens' => $sinhviens,
+            'lopHocs' => $lopHocs,
+            'filters' => $filters,
+            'sort' => $sort,
+            'direction' => $direction,
+            'perPage' => $perPage,
+            'sortable' => self::SORTABLE,
+            'perPageOptions' => self::PER_PAGE_OPTIONS,
         ]);
     }
 
     /**
-     * Xem chi tiết thông tin sinh viên
-     */
-    public function show($id = null)
-    {
-        // Hỗ trợ cả trường hợp gọi hàm show($hoten, $tuoi) từ bài tập cũ
-        if (!is_numeric($id) && is_string($id)) {
-            $tuoi = func_num_args() > 1 ? func_get_arg(1) : 0;
-            return "Đây là sinh viên có tên = $id và tuổi = $tuoi";
-        }
-
-        $list = $this->getList();
-        $sinhvien = collect($list)->firstWhere('id', (int) $id);
-
-        if (!$sinhvien) {
-            return redirect()->route('sinhvien.index')->with('error', 'Không tìm thấy sinh viên!');
-        }
-
-        return view('sinhvien.show', [
-            'title' => 'Chi tiết sinh viên: ' . ($sinhvien['ten'] ?? $sinhvien['name']),
-            'sinhvien' => $sinhvien,
-        ]);
-    }
-
-    /**
-     * Form thêm mới sinh viên (Resource chuẩn: create)
+     * Giao diện thêm mới sinh viên
      */
     public function create()
     {
-        return view('sinhvien.add', [
-            'title' => 'Thêm sinh viên',
+        $lopHocs = LopHoc::where('trang_thai', true)->orderBy('ten_lop')->get();
+
+        return view('sinhvien.create', [
+            'lopHocs' => $lopHocs,
         ]);
     }
 
     /**
-     * Alias cho route cũ /sinhvien/add
+     * Lưu sinh viên mới vào cơ sở dữ liệu
      */
-    public function add()
+    public function store(StoreSinhVienRequest $request)
     {
-        return $this->create();
+        $data = $request->validated();
+        $data['trang_thai'] = $request->has('trang_thai') ? (bool) $request->trang_thai : true;
+
+        $sinhVien = SinhVien::create($data);
+
+        return redirect()->route('sinhvien.index')
+            ->with('success', 'Sinh viên "' . $sinhVien->ten . '" (' . $sinhVien->ma_sv . ') đã được tạo thành công.');
     }
 
     /**
-     * Lưu thông tin sinh viên mới
+     * Xem thông tin chi tiết sinh viên
      */
-    public function store(Request $request)
+    public function show($id)
     {
-        // Chuẩn hóa tên trường nếu form gửi name/age thay vì ten/tuoi
-        if (!$request->has('ten') && $request->has('name')) {
-            $request->merge(['ten' => $request->input('name')]);
-        }
-        if (!$request->has('tuoi') && $request->has('age')) {
-            $request->merge(['tuoi' => $request->input('age')]);
-        }
+        $sinhvien = SinhVien::with('lopHoc')->findOrFail($id);
 
-        $validated = $request->validate([
-            'ten' => 'required|string|max:255',
-            'tuoi' => 'required|integer|min:1|max:120',
-            'diachi' => 'nullable|string|max:255',
-        ], [
-            'ten.required' => 'Tên sinh viên không được để trống.',
-            'tuoi.required' => 'Tuổi không được để trống.',
-            'tuoi.integer' => 'Tuổi phải là số nguyên.',
-            'tuoi.min' => 'Tuổi phải từ 1 trở lên.',
-            'tuoi.max' => 'Tuổi không hợp lệ.',
-        ]);
-
-        $list = $this->getList();
-        $newId = count($list) > 0 ? max(array_column($list, 'id')) + 1 : 1;
-
-        $ten = trim($validated['ten']);
-        $tuoi = (int) $validated['tuoi'];
-        $diachi = trim($validated['diachi'] ?? '');
-
-        $list[] = [
-            'id' => $newId,
-            'name' => $ten,
-            'ten' => $ten,
-            'age' => $tuoi,
-            'tuoi' => $tuoi,
-            'diachi' => $diachi,
-        ];
-
-        $this->saveList($list);
-
-        return redirect()->route('sinhvien.index')->with('success', 'Thêm sinh viên thành công!');
-    }
-
-    /**
-     * Form chỉnh sửa sinh viên
-     */
-    public function edit($id)
-    {
-        $list = $this->getList();
-        $sinhvien = collect($list)->firstWhere('id', (int) $id);
-
-        if (!$sinhvien) {
-            return redirect()->route('sinhvien.index')->with('error', 'Không tìm thấy sinh viên cần sửa!');
-        }
-
-        return view('sinhvien.edit', [
-            'title' => 'Sửa sinh viên: ' . ($sinhvien['ten'] ?? $sinhvien['name']),
+        return view('sinhvien.show', [
             'sinhvien' => $sinhvien,
         ]);
     }
 
     /**
-     * Cập nhật thông tin sinh viên
+     * Giao diện chỉnh sửa thông tin sinh viên
      */
-    public function update(Request $request, $id)
+    public function edit($id)
     {
-        if (!$request->has('ten') && $request->has('name')) {
-            $request->merge(['ten' => $request->input('name')]);
-        }
-        if (!$request->has('tuoi') && $request->has('age')) {
-            $request->merge(['tuoi' => $request->input('age')]);
-        }
+        $sinhvien = SinhVien::findOrFail($id);
+        $lopHocs = LopHoc::where('trang_thai', true)->orderBy('ten_lop')->get();
 
-        $validated = $request->validate([
-            'ten' => 'required|string|max:255',
-            'tuoi' => 'required|integer|min:1|max:120',
-            'diachi' => 'nullable|string|max:255',
-        ], [
-            'ten.required' => 'Tên sinh viên không được để trống.',
-            'tuoi.required' => 'Tuổi không được để trống.',
-            'tuoi.integer' => 'Tuổi phải là số nguyên.',
-            'tuoi.min' => 'Tuổi phải từ 1 trở lên.',
-            'tuoi.max' => 'Tuổi không hợp lệ.',
+        return view('sinhvien.edit', [
+            'sinhvien' => $sinhvien,
+            'lopHocs' => $lopHocs,
         ]);
-
-        $list = $this->getList();
-        $found = false;
-
-        foreach ($list as &$item) {
-            if ($item['id'] == (int) $id) {
-                $ten = trim($validated['ten']);
-                $tuoi = (int) $validated['tuoi'];
-                $diachi = trim($validated['diachi'] ?? '');
-
-                $item['name'] = $ten;
-                $item['ten'] = $ten;
-                $item['age'] = $tuoi;
-                $item['tuoi'] = $tuoi;
-                $item['diachi'] = $diachi;
-                $found = true;
-                break;
-            }
-        }
-        unset($item);
-
-        if (!$found) {
-            return redirect()->route('sinhvien.index')->with('error', 'Không tìm thấy sinh viên để cập nhật!');
-        }
-
-        $this->saveList($list);
-
-        return redirect()->route('sinhvien.index')->with('success', 'Cập nhật sinh viên thành công!');
     }
 
     /**
-     * Xóa sinh viên (Resource chuẩn: destroy)
+     * Cập nhật thông tin sinh viên trong cơ sở dữ liệu
+     */
+    public function update(UpdateSinhVienRequest $request, $id)
+    {
+        $sinhvien = SinhVien::findOrFail($id);
+        $data = $request->validated();
+        $data['trang_thai'] = $request->has('trang_thai') ? (bool) $request->trang_thai : false;
+
+        $sinhvien->update($data);
+
+        return redirect()->route('sinhvien.index')
+            ->with('success', 'Thông tin sinh viên "' . $sinhvien->ten . '" đã được cập nhật thành công.');
+    }
+
+    /**
+     * Xóa sinh viên
      */
     public function destroy($id)
     {
-        $list = $this->getList();
-        $newList = array_filter($list, fn ($item) => $item['id'] != (int) $id);
+        $sinhvien = SinhVien::findOrFail($id);
+        $ten = $sinhvien->ten;
+        $sinhvien->delete();
 
-        if (count($newList) === count($list)) {
-            return redirect()->route('sinhvien.index')->with('error', 'Không tìm thấy sinh viên để xóa!');
-        }
-
-        $this->saveList($newList);
-
-        return redirect()->route('sinhvien.index')->with('success', 'Xóa sinh viên thành công!');
-    }
-
-    /**
-     * Alias cho delete($id)
-     */
-    public function delete($id)
-    {
-        return $this->destroy($id);
-    }
-
-    /**
-     * Reset danh sách sinh viên về dữ liệu mẫu ban đầu
-     */
-    public function reset()
-    {
-        session()->forget('sinhviens');
-        return redirect()->route('sinhvien.index')->with('success', 'Đã reset về dữ liệu mẫu!');
+        return back()->with('success', 'Sinh viên "' . $ten . '" đã được xóa thành công.');
     }
 }

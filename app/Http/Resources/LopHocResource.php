@@ -22,7 +22,10 @@ class LopHocResource extends JsonResource
             'so_dien_thoai_gvcn' => $this->so_dien_thoai_gvcn,
             'ghi_chu' => $this->ghi_chu,
             'si_so' => $this->si_so,
-            'trang_thai' => $this->trang_thai,
+            'so_sinh_vien' => $this->sinh_viens_count ?? $this->sinhViens()->count(),
+            'trang_thai' => (bool) $this->trang_thai,
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

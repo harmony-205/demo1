@@ -27,6 +27,7 @@ class StoreMenuRequest extends FormRequest
             'url' => ['required', 'string', 'max:255', 'regex:/^(\/|#|https?:\/\/)/'],
             'vi_tri' => ['required', Rule::in(array_keys(Menu::VI_TRI))],
             'nhom' => 'nullable|string|max:100',
+            'role' => 'nullable|string|in:all,admin,teacher',
             'thu_tu' => 'required|integer|min:0',
             'trang_thai' => 'required|boolean',
         ];

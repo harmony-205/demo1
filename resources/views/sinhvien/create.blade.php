@@ -1,25 +1,30 @@
 @extends('layouts.layoutmaster')
-@section('title', 'Thêm sinh viên')
+@section('title', 'Thêm mới sinh viên')
 
 @section('content')
-    <div style="max-width: 560px;">
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('sinhvien.index') }}">Sinh viên</a></li>
-                <li class="breadcrumb-item active">Thêm mới</li>
-            </ol>
-        </nav>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h3 mb-1">Thêm mới sinh viên</h1>
+            <p class="text-muted mb-0">Nhập thông tin hồ sơ sinh viên mới</p>
+        </div>
+        <a href="{{ route('sinhvien.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách
+        </a>
+    </div>
 
-        <h1 class="mb-4">Thêm sinh viên</h1>
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <form action="{{ route('sinhvien.store') }}" method="POST">
+                @csrf
+                @include('sinhvien._form')
 
-        <form action="{{ route('sinhvien.store') }}" method="POST" novalidate>
-            @csrf
-            @include('sinhvien._form')
-
-            <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-primary">Lưu sinh viên</button>
-                <a href="{{ route('sinhvien.index') }}" class="btn btn-secondary">Hủy</a>
-            </div>
-        </form>
+                <div class="mt-4 pt-3 border-top d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check2-circle me-1"></i> Lưu sinh viên
+                    </button>
+                    <a href="{{ route('sinhvien.index') }}" class="btn btn-light">Hủy bỏ</a>
+                </div>
+            </form>
+        </div>
     </div>
 @endsection
